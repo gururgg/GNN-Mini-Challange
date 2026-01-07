@@ -47,14 +47,14 @@ preds = torch.tensor(submission.values, dtype=torch.int64)
 y_challenge = y[test_mask_challenge]
 y_original  = y[test_mask]
 
-p_challenge = pred_challenge[test_mask_challenge]
-p_original  = pred_original[test_mask]
+pred_challenge = preds[test_mask_challenge]
+pred_original  = preds[test_mask]
 
 # -----------------------------
 # Metrics
 # -----------------------------
-challenge_acc = accuracy_score(y_challenge, p_challenge.numpy())
-original_acc  = accuracy_score(y_original, p_original.numpy())
+challenge_acc = accuracy_score(y_challenge, pred_challenge.numpy())
+original_acc  = accuracy_score(y_original, pred_original.numpy())
 gap = challenge_acc - original_acc
 
 print(f"Challenge Accuracy: {challenge_acc:.4f}")
