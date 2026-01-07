@@ -10,55 +10,65 @@ from sklearn.metrics import accuracy_score
 # -----------------------------
 # Helper: decode tensor from base64 secret
 # -----------------------------
-def decode_tensor(secret_name, dtype=np.int64):
+def decode_tensor(secret_name, dtype):
     b64 = os.environ[secret_name]
     bytes_data = base64.b64decode(b64)
-    arr = np.frombuffer(bytes_data, dtype=dtype)
+    arr = np.frombuffer(bytes_data, dtype=dtype).copy()
     return torch.from_numpy(arr)
 
 # -----------------------------
 # Load secrets
 # -----------------------------
-y = decode_tensor("PRIVATE_Y", dtype=np.int64)
-test_mask_challenge = decode_tensor("PRIVATE_TEST_MASK_CHALLENGE", dtype=np.bool_)
-test_mask = decode_tensor("PRIVATE_TEST_MASK", dtype=np.bool_)
+y = decode_tensor("PRIVATE_Y", np.int64)
+test_mask_challenge = decode_tensor("PRIVATE_TEST_MASK_CHALLENGE", np.bool_)
+test_mask = decode_tensor("PRIVATE_TEST_MASK", np.bool_)
 
 # -----------------------------
 # Load participant submission
 # -----------------------------
-submission_csv = "submissions/submission.csv"  # modify if needed
-submission = pd.read_csv(submission_csv)
+submission_files = [f for f in os.listdir("submissions") if f.endswith(".csv")]
+assert len(submission_files) == 1, "Exactly one submission CSV required"
 
-# Assumes CSV columns: 'pred_challenge', 'pred_original'
+submission_path = os.path.join("submissions", submission_files[0])
+user = os.path.splitext(submission_files[0])[0]
+
+submission = pd.read_csv(submission_path)
+
+if len(submission) != len(test_mask):
+    raise ValueError(
+        f"CSV length {len(submission)} does not match number of test nodes {len(test_mask)}"
+    )
+
 preds = torch.tensor(submission.values, dtype=torch.int64)
 
 # -----------------------------
-# Extract predictions for masks
+# Apply masks
 # -----------------------------
-pred_challenge = preds[test_mask_challenge]
-pred_original  = preds[test_mask]
-
-# True labels for masks
 y_challenge = y[test_mask_challenge]
 y_original  = y[test_mask]
 
+p_challenge = pred_challenge[test_mask_challenge]
+p_original  = pred_original[test_mask]
+
 # -----------------------------
-# Compute accuracy
+# Metrics
 # -----------------------------
-acc_challenge = accuracy_score(y_challenge, pred_challenge.numpy())
-acc_casual    = accuracy_score(y_original, pred_original.numpy())
-discrepancy   = acc_challenge - acc_casual
+challenge_acc = accuracy_score(y_challenge, p_challenge.numpy())
+original_acc  = accuracy_score(y_original, p_original.numpy())
+gap = challenge_acc - original_acc
 
-print(f"Challenge Accuracy: {acc_challenge:.4f}")
-print(f"Casual Accuracy: {acc_casual:.4f}")
-print(f"Discrepancy: {discrepancy:.4f}")
+print(f"Challenge Accuracy: {challenge_acc:.4f}")
+print(f"Original Accuracy : {original_acc:.4f}")
+print(f"Gap               : {gap:.4f}")
 
-
+# -----------------------------
+# Leaderboard update
+# -----------------------------
 entry = {
-    "user": os.environ.get("GITHUB_ACTOR", "unknown"),
+    "user": user,
     "challenge_acc": float(challenge_acc),
     "original_acc": float(original_acc),
-    "gap": float(original_acc - challenge_acc),
+    "gap": float(gap),
     "timestamp": datetime.utcnow().isoformat()
 }
 
@@ -70,8 +80,8 @@ if os.path.exists(leaderboard_path):
 else:
     board = []
 
-# keep best score per user
-board = [b for b in board if b["user"] != entry["user"]]
+# Keep best challenge score per user
+board = [b for b in board if b["user"] != user]
 board.append(entry)
 
 board = sorted(board, key=lambda x: x["challenge_acc"], reverse=True)

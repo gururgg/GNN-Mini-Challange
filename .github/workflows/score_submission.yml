@@ -5,11 +5,16 @@ on:
   pull_request:
     paths:
       - submissions/**
+  push:
+    branches:
+      - main
+    paths:
+      - submissions/**
   workflow_dispatch:
 
 permissions:
-  contents: write   # required to update leaderboard.json
-  pull-requests: read
+  contents: write
+  pull-requests: write
 
 jobs:
   evaluate:
@@ -23,6 +28,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -30,19 +37,18 @@ jobs:
           python-version: "3.10"
 
       - name: Install requirements
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
-      - name: Evaluate submission and update leaderboard
-        run: |
-          python scripts/evaluate.py
+      - name: Evaluate submission
+        run: python evaluate.py
 
+      
       - name: Commit leaderboard update
+        if: github.event_name == 'push'
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
 
-          # Only commit if leaderboard changed
           if git diff --quiet leaderboard.json; then
             echo "No leaderboard changes"
           else
@@ -50,4 +56,5 @@ jobs:
             git commit -m "Update leaderboard"
             git push
           fi
+
 
