@@ -53,10 +53,11 @@ The **main goal** is to achieve the **highest classification accuracy on `test_m
 
 In addition:
 - You may use the **original CiteSeer masks** for analysis
-- Comparing performance and differences between:
-  - original val set
+- Comparing the properties of
+  - original test set
+  - challange val set
   - challenge test set  
-  can provide useful insights and hints
+  can provide useful insights and hints. You have access to features and graph structure. If you find the cause of the challange, it will be easier to solve the challange :blush:
 
 🎯 **Bonus objective:**  
 Achieve a **small performance gap** between the challenge task and the original task, indicating strong generalization.
