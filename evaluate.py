@@ -95,7 +95,7 @@ with open(leaderboard_path, "w") as f:
     json.dump(board, f, indent=2)
     
     
- md_path = "leaderboard.md"
+md_path = "leaderboard.md"
 
 lines = [
     "# 🏆 Leaderboard\n",
