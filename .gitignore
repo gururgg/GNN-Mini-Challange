@@ -1,2 +1,31 @@
-# Private organizer-only data
-private/
+# Data files (sensitive)
+data/private/
+
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+
+# Leaderboard data (will be generated, but we need to commit them for GitHub Pages)
+# Note: These files are auto-generated but must be in the repo for GitHub Pages to work
+# leaderboard.json
+# leaderboard.html

@@ -1,0 +1,69 @@
+name: Update Leaderboard
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'submissions/**/*.csv'
+  workflow_dispatch:
+
+jobs:
+  update-leaderboard:
+    runs-on: ubuntu-latest
+    if: github.repository_owner != 'github-actions[bot]'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        pip install -r starter_code/requirements.txt
+        pip install pandas pyarrow scikit-learn requests gdown boto3
+    
+    - name: Download private test data
+      env:
+        PRIVATE_DATA_METHOD: ${{ secrets.PRIVATE_DATA_METHOD || 'url' }}
+        PRIVATE_DATA_URL: ${{ secrets.PRIVATE_DATA_URL }}
+        PRIVATE_DATA_TOKEN: ${{ secrets.PRIVATE_DATA_TOKEN }}
+        GOOGLE_DRIVE_FILE_ID: ${{ secrets.GOOGLE_DRIVE_FILE_ID }}
+        GOOGLE_DRIVE_ACCESS_TOKEN: ${{ secrets.GOOGLE_DRIVE_ACCESS_TOKEN }}
+        S3_BUCKET: ${{ secrets.S3_BUCKET }}
+        S3_KEY: ${{ secrets.S3_KEY }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      run: |
+        mkdir -p data/private
+        python scripts/download_private_data.py
+    
+    - name: Find and evaluate new submissions
+      id: evaluate
+      run: |
+        mkdir -p results
+        python scripts/evaluate_all_submissions.py || echo "Evaluation completed with warnings"
+        
+    - name: Generate leaderboard
+      run: |
+        # Create initial leaderboard.json if it doesn't exist
+        if [ ! -f leaderboard.json ]; then
+          echo '{"last_updated": null, "submissions": []}' > leaderboard.json
+        fi
+        python scripts/generate_leaderboard.py
+    
+    - name: Commit and push leaderboard
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add leaderboard.json leaderboard.html
+        git diff --staged --quiet || git commit -m "Auto-update leaderboard [skip ci]"
+        git push || echo "Nothing to push"
+
